@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Catch & Fry</title>
+
+<style>
+html,body{
+margin:0;
+overflow:hidden;
+background:#111;
+font-family:Arial,sans-serif;
+touch-action:none;
+}
+
+canvas{
+display:block;
+}
+
+#hud,#msg{
+position:fixed;
+color:white;
+font-weight:bold;
+text-shadow:3px 3px 5px #000;
+z-index:10;
+}
+
+#hud{
+top:10px;
+left:10px;
+font-size:15px;
+line-height:1.35;
+background:rgba(0,0,0,.25);
+padding:8px 10px;
+border-radius:12px;
+}
+
+#msg{
+top:118px;
+left:0;
+width:100%;
+text-align:center;
+font-size:20px;
+pointer-events:none;
+padding:0 10px;
+box-sizing:border-box;
+}
+
+#controls{
+position:fixed;
+bottom:calc(10px + env(safe-area-inset-bottom));
+left:0;
+width:100%;
+display:flex;
+justify-content:center;
+gap:6px;
+z-index:20;
+flex-wrap:wrap;
+padding:0 6px;
+box-sizing:border-box;
+}
+
+button{
+font-size:15px;
+font-weight:bold;
+padding:13px 10px;
+border:0;
+border-radius:14px;
+background:#ffd84d;
+color:#111;
+box-shadow:0 5px 0 #9f6a00;
+touch-action:manipulation;
+}
+
+button:active{
+transform:translateY(4px);
+box-shadow:0 1px 0 #9f6a00;
+}
+
+#start,#shop{
+position:fixed;
+inset:0;
+z-index:100;
+display:flex;
+align-items:center;
+justify-content:center;
+text-align:center;
+color:white;
+}
+
+#start{
+background:linear-gradient(#ff7b54,#ffd166,#0b6d99);
+}
+
+#shop{
+display:none;
+background:rgba(0,0,0,.86);
+}
+
+.box{
+background:rgba(0,0,0,.76);
+padding:22px;
+border-radius:25px;
+max-width:92%;
+box-shadow:0 0 20px #000;
+}
+
+.box h1{
+font-size:48px;
+margin:0;
+color:#ffd84d;
+}
+
+.box h2{
+margin-top:0;
+color:#ffd84d;
+}
+
+.shopBtn{
+display:block;
+width:100%;
+margin:10px 0;
+font-size:17px;
+}
+
+.small{
+font-size:14px;
+color:#eee;
+}
+
+@media(max-width:700px){
+#hud{font-size:13px}
+#msg{font-size:17px;top:112px}
+button{font-size:13px;padding:12px 8px}
+.box h1{font-size:40px}
+}
+
+@media(max-width:430px){
+#controls{gap:4px}
+button{font-size:12px;padding:11px 6px}
+#hud{font-size:12px}
+#msg{font-size:16px}
+}
+</style>
+</head>
+
+<body>
+
+<div id="hud">
+Money: $<span id="money">0</span><br>
+Basket: <span id="basket">0</span>/<span id="basketMax">3</span> — $<span id="basketValue">0</span><br>
+Fish Caught: <span id="caught">0</span><br>
+Pole Lv: <span id="poleLv">1</span> | Bait Lv: <span id="baitLv">1</span><br>
+Catch Chance: <span id="chance">66</span>%<br>
+Last Fish: <span id="lastFish">None</span>
+</div>
+
+<div id="msg">Press START</div>
+
+<div id="controls">
+<button id="leftBtn">⬅️</button>
+<button id="castBtn">CAST 🎣</button>
+<button id="reelBtn">REEL ⬆️</button>
+<button id="fryBtn">FRY 🔥</button>
+<button id="shopBtn">SHOP 🛒</button>
+<button id="rightBtn">➡️</button>
+</div>
+
+<div id="start">
+<div class="box">
+<h1>CATCH & FRY</h1>
+<p>Hook it. Cook it. Upgrade it.</p>
+<p>Catch fish, fry them for money, then buy better gear.</p>
+<button id="startBtn">START GAME</button>
+</div>
+</div>
+
+<div id="shop">
+<div class="box">
+<h2>FISH FRY SHOP 🛒</h2>
+<p>Money: $<span id="shopMoney">0</span></p>
+
+<button class="shopBtn" id="buyPole">Upgrade Pole 🎣 - $<span id="poleCost">75</span></button>
+<div class="small">Faster reel + better landing chance.</div>
+
+<button class="shopBtn" id="buyBait">Better Bait 🪱 - $<span id="baitCost">60</span></button>
+<div class="small">Better chance fish stays hooked.</div>
+
+<button class="shopBtn" id="buyBasket">Bigger Basket 🧺 - $<span id="basketCost">90</span></button>
+<div class="small">Carry more fish before frying.</div>
+
+<br>
+<button id="closeShop">BACK TO DOCK</button>
+</div>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+function resize(){
+canvas.width=innerWidth;
+canvas.height=innerHeight;
+}
+resize();
+addEventListener("resize",resize);
+
+let audioCtx=null;
+function audioStart(){
+if(!audioCtx){
+audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+}
+}
+
+function tone(freq,duration,type="sine",vol=.12){
+audioStart();
+let o=audioCtx.createOscillator();
+let g=audioCtx.createGain();
+o.type=type;
+o.frequency.value=freq;
+g.gain.value=vol;
+o.connect(g);
+g.connect(audioCtx.destination);
+o.start();
+g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);
+o.stop(audioCtx.currentTime+duration);
+}
+
+function vibrate(pattern){
+if(navigator.vibrate){
+navigator.vibrate(pattern);
+}
+}
+
+function soundCast(){tone(420,.08,"sine",.08);setTimeout(()=>tone(260,.1,"sine",.07),70)}
+function soundReel(){tone(190,.08,"square",.06);setTimeout(()=>tone(230,.08,"square",.05),80)}
+function soundCatch(){tone(520,.09,"triangle",.13);setTimeout(()=>tone(720,.12,"triangle",.13),95);setTimeout(()=>tone(920,.13,"triangle",.11),190)}
+function soundLost(){tone(180,.16,"sawtooth",.12);setTimeout(()=>tone(120,.22,"sawtooth",.1),130)}
+function soundFry(){tone(90,.08,"sawtooth",.08);setTimeout(()=>tone(130,.09,"sawtooth",.07),80);setTimeout(()=>tone(170,.1,"sawtooth",.06),160)}
+function soundBuy(){tone(600,.09,"triangle",.12);setTimeout(()=>tone(850,.12,"triangle",.12),90)}
+
+let started=false;
+let money=0;
+let caught=0;
+let basket=0;
+let basketValue=0;
+
+let poleLevel=1;
+let baitLevel=1;
+let basketLimit=3;
+
+let poleCost=75;
+let baitCost=60;
+let basketCost=90;
+
+let waterTop=0;
+let dockTop=0;
+let msgTimer=0;
+let fishJumpTimer=0;
+let splashTimer=0;
+
+const fishTypes=[
+{name:"Tiny Fry",color:"#90e0ef",value:10,speed:1.8,size:28},
+{name:"Bucket Bass",color:"#ff595e",value:25,speed:2.1,size:34},
+{name:"Grease Gill",color:"#8ac926",value:40,speed:2.4,size:38},
+{name:"Disco Trout",color:"#6a4c93",value:65,speed:2.8,size:42},
+{name:"Golden Fryfish",color:"#ffca3a",value:100,speed:3.2,size:46},
+{name:"Kraken Nugget",color:"#f72585",value:175,speed:3.7,size:54}
+];
+
+const player={x:90,y:0,w:58,h:78,speed:6,left:false,right:false};
+const fryer={x:0,y:0,w:145,h:95};
+
+const cast={
+active:false,
+bobberX:0,
+bobberY:0,
+hookY:0,
+fish:null,
+reeling:false,
+escapeRoll:0,
+fishJump:false,
+fishJumpY:0
+};
+
+let fishes=[];
+let bubbles=[];
+
+const moneyEl=document.getElementById("money");
+const caughtEl=document.getElementById("caught");
+const basketEl=document.getElementById("basket");
+const basketMaxEl=document.getElementById("basketMax");
+const basketValueEl=document.getElementById("basketValue");
+const poleLvEl=document.getElementById("poleLv");
+const baitLvEl=document.getElementById("baitLv");
+const chanceEl=document.getElementById("chance");
+const lastFishEl=document.getElementById("lastFish");
+
+const shopMoney=document.getElementById("shopMoney");
+const poleCostEl=document.getElementById("poleCost");
+const baitCostEl=document.getElementById("baitCost");
+const basketCostEl=document.getElementById("basketCost");
+
+function catchChance(){
+return Math.min(.95,.45+(poleLevel*.11)+(baitLevel*.10));
+}
+
+function say(t){
+document.getElementById("msg").textContent=t;
+msgTimer=150;
+}
+
+function updateHud(){
+moneyEl.textContent=money;
+caughtEl.textContent=caught;
+basketEl.textContent=basket;
+basketMaxEl.textContent=basketLimit;
+basketValueEl.textContent=basketValue;
+poleLvEl.textContent=poleLevel;
+baitLvEl.textContent=baitLevel;
+chanceEl.textContent=Math.round(catchChance()*100);
+
+shopMoney.textContent=money;
+poleCostEl.textContent=poleCost;
+baitCostEl.textContent=baitCost;
+basketCostEl.textContent=basketCost;
+}
+
+function chooseFish(){
+let roll=Math.random();
+if(roll<.38)return fishTypes[0];
+if(roll<.62)return fishTypes[1];
+if(roll<.78)return fishTypes[2];
+if(roll<.90)return fishTypes[3];
+if(roll<.98)return fishTypes[4];
+return fishTypes[5];
+}
+
+function spawnFish(){
+const t=chooseFish();
+fishes.push({
+...t,
+x:Math.random()*canvas.width,
+y:canvas.height*.44+Math.random()*canvas.height*.28,
+dir:Math.random()>.5?1:-1
+});
+}
+
+function resetFish(){
+fishes=[];
+for(let i=0;i<24;i++){
+spawnFish();
+}
+}
+
+function startGame(){
+audioStart();
+started=true;
+document.getElementById("start").style.display="none";
+say("Cast your line!");
+}
+
+function castLine(){
+audioStart();
+
+if(!started)return;
+
+if(cast.active){
+say("Already casting! Tap REEL.");
+return;
+}
+
+if(basket>=basketLimit){
+say("Basket full! Fry or upgrade basket.");
+return;
+}
+
+soundCast();
+
+waterTop=canvas.height*.33;
+
+cast.active=true;
+cast.reeling=false;
+cast.bobberX=Math.max(100,Math.min(canvas.width-220,player.x+180));
+cast.bobberY=waterTop+35;
+cast.hookY=cast.bobberY+115;
+cast.fish={...chooseFish()};
+cast.escapeRoll=Math.random();
+cast.fishJump=false;
+cast.fishJumpY=0;
+
+splashTimer=20;
+
+vibrate([120,60,120]);
+
+say("Fish on! Reel in the "+cast.fish.name+" worth $"+cast.fish.value+"!");
+}
+
+function reelLine(){
+audioStart();
+
+if(!cast.active){
+say("Cast first!");
+return;
+}
+
+cast.reeling=true;
+soundReel();
+say("Reeling it in!");
+}
+
+function fryFish(){
+audioStart();
+
+if(basket<=0){
+say("No fish to fry!");
+return;
+}
+
+let earned=basketValue;
+money+=earned;
+basket=0;
+basketValue=0;
+
+updateHud();
+soundFry();
+
+for(let i=0;i<45;i++){
+bubbles.push({
+x:fryer.x+Math.random()*fryer.w,
+y:fryer.y+Math.random()*fryer.h,
+r:4+Math.random()*8,
+life:30+Math.random()*25
+});
+}
+
+say("Sizzle! Sold basket for $"+earned+"!");
+}
+
+function openShop(){
+if(!started)return;
+updateHud();
+document.getElementById("shop").style.display="flex";
+}
+
+function closeShop(){
+document.getElementById("shop").style.display="none";
+say("Back to fishing!");
+}
+
+function buyPole(){
+if(money<poleCost){
+say("Not enough money!");
+return;
+}
+money-=poleCost;
+poleLevel++;
+poleCost=Math.floor(poleCost*1.7);
+updateHud();
+soundBuy();
+say("Pole upgraded!");
+}
+
+function buyBait(){
+if(money<baitCost){
+say("Not enough money!");
+return;
+}
+money-=baitCost;
+baitLevel++;
+baitCost=Math.floor(baitCost*1.6);
+updateHud();
+soundBuy();
+say("Better bait bought!");
+}
+
+function buyBasket(){
+if(money<basketCost){
+say("Not enough money!");
+return;
+}
+money-=basketCost;
+basketLimit+=2;
+basketCost=Math.floor(basketCost*1.8);
+updateHud();
+soundBuy();
+say("Basket upgraded!");
+}
+
+function bind(id,fn){
+let el=document.getElementById(id);
+el.addEventListener("pointerdown",e=>{
+e.preventDefault();
+fn();
+});
+}
+
+bind("startBtn",startGame);
+bind("castBtn",castLine);
+bind("reelBtn",reelLine);
+bind("fryBtn",fryFish);
+bind("shopBtn",openShop);
+bind("closeShop",closeShop);
+bind("buyPole",buyPole);
+bind("buyBait",buyBait);
+bind("buyBasket",buyBasket);
+
+function hold(id,on,off){
+let el=document.getElementById(id);
+el.addEventListener("pointerdown",e=>{e.preventDefault();on()});
+el.addEventListener("pointerup",e=>{e.preventDefault();off()});
+el.addEventListener("pointerleave",e=>{e.preventDefault();off()});
+el.addEventListener("pointercancel",e=>{e.preventDefault();off()});
+}
+
+hold("leftBtn",()=>player.left=true,()=>player.left=false);
+hold("rightBtn",()=>player.right=true,()=>player.right=false);
+
+addEventListener("keydown",e=>{
+let k=e.key.toLowerCase();
+if(k==="a"||k==="arrowleft")player.left=true;
+if(k==="d"||k==="arrowright")player.right=true;
+if(k===" "||k==="c")castLine();
+if(k==="r")reelLine();
+if(k==="f")fryFish();
+if(k==="s")openShop();
+});
+
+addEventListener("keyup",e=>{
+let k=e.key.toLowerCase();
+if(k==="a"||k==="arrowleft")player.left=false;
+if(k==="d"||k==="arrowright")player.right=false;
+});
+
+resetFish();
+updateHud();
+
+function update(){
+waterTop=canvas.height*.33;
+dockTop=canvas.height-120;
+
+player.y=canvas.height-170;
+fryer.x=canvas.width-170;
+fryer.y=canvas.height-155;
+
+if(player.left)player.x-=player.speed;
+if(player.right)player.x+=player.speed;
+
+player.x=Math.max(10,Math.min(canvas.width-player.w-10,player.x));
+
+fishes.forEach(f=>{
+f.x+=f.speed*f.dir;
+if(f.x<-100)f.x=canvas.width+100;
+if(f.x>canvas.width+100)f.x=-100;
+});
+
+if(cast.active){
+cast.bobberY=waterTop+35+Math.sin(Date.now()/180)*4;
+
+if(cast.reeling){
+let reelSpeed=6+poleLevel*2;
+
+cast.hookY-=reelSpeed;
+cast.bobberY-=reelSpeed*.45;
+
+if(Math.random()<.045){
+cast.fishJump=true;
+fishJumpTimer=20;
+splashTimer=16;
+}
+
+if(fishJumpTimer>0){
+fishJumpTimer--;
+cast.fishJumpY=Math.sin(fishJumpTimer*.3)*-85;
+}else{
+cast.fishJump=false;
+cast.fishJumpY=0;
+}
+
+if(cast.hookY<=player.y+20){
+if(cast.escapeRoll<catchChance()){
+caught++;
+basket++;
+basketValue+=cast.fish.value;
+lastFishEl.textContent=cast.fish.name+" ($"+cast.fish.value+")";
+soundCatch();
+vibrate([80,40,80,40,160]);
+say("Caught "+cast.fish.name+"!");
+}else{
+soundLost();
+vibrate([250]);
+say(cast.fish.name+" got away!");
+}
+
+cast.active=false;
+updateHud();
+}
+}
+}
+
+if(splashTimer>0)splashTimer--;
+
+bubbles=bubbles.filter(b=>{
+b.y-=1;
+b.life--;
+return b.life>0;
+});
+
+if(msgTimer>0)msgTimer--;
+}
+
+function bg(){
+let g=ctx.createLinearGradient(0,0,0,canvas.height);
+g.addColorStop(0,"#ff7b54");
+g.addColorStop(.32,"#ffd166");
+g.addColorStop(.33,"#1b9aaa");
+g.addColorStop(1,"#05345f");
+ctx.fillStyle=g;
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+ctx.fillStyle="rgba(255,255,255,.25)";
+for(let i=0;i<canvas.width;i+=85){
+ctx.beginPath();
+ctx.arc(i+(Date.now()/35)%85,waterTop+80,18,0,Math.PI*2);
+ctx.fill();
+}
+}
+
+function fishShape(x,y,f,dir=1){
+ctx.save();
+ctx.translate(x,y);
+ctx.scale(dir,1);
+
+ctx.fillStyle=f.color;
+ctx.beginPath();
+ctx.ellipse(0,0,f.size,f.size*.45,0,0,Math.PI*2);
+ctx.fill();
+
+ctx.beginPath();
+ctx.moveTo(-f.size,0);
+ctx.lineTo(-f.size-22,-15);
+ctx.lineTo(-f.size-22,15);
+ctx.closePath();
+ctx.fill();
+
+ctx.fillStyle="white";
+ctx.beginPath();
+ctx.arc(f.size*.42,-6,5,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillStyle="black";
+ctx.beginPath();
+ctx.arc(f.size*.44,-6,2,0,Math.PI*2);
+ctx.fill();
+
+ctx.restore();
+}
+
+function drawFish(){
+fishes.forEach(f=>fishShape(f.x,f.y,f,f.dir));
+}
+
+function dock(){
+ctx.fillStyle="#8b5a2b";
+ctx.fillRect(0,dockTop,canvas.width,120);
+
+ctx.fillStyle="#5f3518";
+for(let i=0;i<canvas.width;i+=80){
+ctx.fillRect(i,dockTop,16,120);
+}
+
+ctx.fillStyle="#2b1608";
+ctx.fillRect(0,dockTop-5,canvas.width,8);
+}
+
+function playerDraw(){
+ctx.fillStyle="#ffd84d";
+ctx.fillRect(player.x,player.y,player.w,player.h);
+
+ctx.fillStyle="#333";
+ctx.fillRect(player.x+8,player.y-18,player.w-16,18);
+
+ctx.fillStyle="#000";
+ctx.fillRect(player.x+12,player.y+20,8,8);
+ctx.fillRect(player.x+38,player.y+20,8,8);
+
+ctx.fillStyle="#b00020";
+ctx.fillRect(player.x+15,player.y+52,28,7);
+
+ctx.strokeStyle="#2b1605";
+ctx.lineWidth=5;
+ctx.beginPath();
+ctx.moveTo(player.x+player.w,player.y+15);
+ctx.lineTo(player.x+player.w+75,player.y-35);
+ctx.stroke();
+}
+
+function drawSplash(x,y){
+if(splashTimer<=0)return;
+
+ctx.fillStyle="rgba(255,255,255,.8)";
+for(let i=0;i<5;i++){
+ctx.beginPath();
+ctx.arc(
+x-30+i*15,
+y+Math.sin((splashTimer+i)*.7)*8,
+4+i%2*3,
+0,
+Math.PI*2
+);
+ctx.fill();
+}
+}
+
+function drawCast(){
+if(!cast.active)return;
+
+let rodX=player.x+player.w+75;
+let rodY=player.y-35;
+
+ctx.strokeStyle="white";
+ctx.lineWidth=3;
+ctx.beginPath();
+ctx.moveTo(rodX,rodY);
+ctx.lineTo(cast.bobberX,cast.bobberY);
+ctx.stroke();
+
+ctx.strokeStyle="#ddd";
+ctx.lineWidth=2;
+ctx.beginPath();
+ctx.moveTo(cast.bobberX,cast.bobberY);
+ctx.lineTo(cast.bobberX,cast.hookY);
+ctx.stroke();
+
+drawSplash(cast.bobberX,waterTop+55);
+
+ctx.fillStyle="red";
+ctx.beginPath();
+ctx.arc(cast.bobberX,cast.bobberY,13,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillStyle="white";
+ctx.beginPath();
+ctx.arc(cast.bobberX,cast.bobberY-5,7,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillStyle="#222";
+ctx.beginPath();
+ctx.arc(cast.bobberX,cast.hookY,7,0,Math.PI*2);
+ctx.fill();
+
+if(cast.fish){
+fishShape(
+cast.bobberX,
+cast.hookY+25+(cast.fishJump?cast.fishJumpY:0),
+cast.fish,
+1
+);
+}
+}
+
+function fryerDraw(){
+ctx.fillStyle="#222";
+ctx.fillRect(fryer.x,fryer.y,fryer.w,fryer.h);
+
+ctx.fillStyle="#ffb703";
+ctx.fillRect(fryer.x+12,fryer.y+15,fryer.w-24,fryer.h-32);
+
+ctx.fillStyle="#111";
+ctx.font="bold 22px Arial";
+ctx.fillText("FRYER",fryer.x+35,fryer.y+58);
+
+bubbles.forEach(b=>{
+ctx.fillStyle="rgba(255,255,255,.8)";
+ctx.beginPath();
+ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+ctx.fill();
+});
+}
+
+function draw(){
+bg();
+drawFish();
+dock();
+fryerDraw();
+playerDraw();
+drawCast();
+}
+
+function loop(){
+if(started)update();
+draw();
+requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
