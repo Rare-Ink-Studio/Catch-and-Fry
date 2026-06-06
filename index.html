@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <title>Catch & Fry</title>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 html,body{
 margin:0;
@@ -86,7 +88,7 @@ transform:translateY(4px);
 box-shadow:0 2px 0 #9f6a00;
 }
 
-#start,#shop{
+#start,#shop,#leaderboard{
 position:fixed;
 inset:0;
 z-index:100;
@@ -101,9 +103,9 @@ color:white;
 background:linear-gradient(#ff7b54,#ffd166,#0b6d99);
 }
 
-#shop{
+#shop,#leaderboard{
 display:none;
-background:rgba(0,0,0,.86);
+background:rgba(0,0,0,.88);
 }
 
 .box{
@@ -139,18 +141,82 @@ font-size:14px;
 color:#eee;
 }
 
+#playerName{
+width:92%;
+max-width:360px;
+font-size:18px;
+font-weight:900;
+padding:13px 14px;
+border-radius:16px;
+border:3px solid #ffd84d;
+background:#fff;
+color:#111;
+text-align:center;
+box-sizing:border-box;
+margin:12px 0;
+}
+
+#leaderboardList{
+max-height:54vh;
+overflow:auto;
+text-align:left;
+margin:12px auto;
+width:min(560px,92vw);
+background:rgba(255,255,255,.08);
+border-radius:16px;
+padding:10px;
+box-sizing:border-box;
+}
+
+.lbRow{
+display:grid;
+grid-template-columns:44px 1fr 90px;
+gap:8px;
+align-items:center;
+padding:10px 8px;
+border-bottom:1px solid rgba(255,255,255,.16);
+font-weight:900;
+}
+
+.lbRow:last-child{
+border-bottom:0;
+}
+
+.lbRank{
+color:#ffd84d;
+}
+
+.lbName{
+overflow:hidden;
+text-overflow:ellipsis;
+white-space:nowrap;
+}
+
+.lbScore{
+text-align:right;
+color:#90e0ef;
+}
+
+.leaderButtons{
+display:flex;
+gap:8px;
+justify-content:center;
+flex-wrap:wrap;
+}
+
 @media(max-width:700px){
 #hud{font-size:12px;padding:7px 8px}
 #msg{font-size:18px;bottom:calc(102px + env(safe-area-inset-bottom))}
 #controls{gap:5px;bottom:calc(12px + env(safe-area-inset-bottom))}
 button{font-size:13px;padding:12px 9px;border-radius:14px}
 .box h1{font-size:38px}
+.lbRow{grid-template-columns:36px 1fr 76px;font-size:13px}
 }
 
 @media(max-width:430px){
 #controls{gap:4px}
 button{font-size:12px;padding:11px 7px}
-#hud{font-size:11px;max-width:48vw}
+#hud{font-size:11px;max-width:50vw}
 #msg{font-size:16px}
 }
 </style>
@@ -160,6 +226,8 @@ button{font-size:12px;padding:11px 7px}
 
 <div id="hud">
 Money: $<span id="money">0</span><br>
+Score: <span id="score">0</span><br>
+Best: <span id="bestScore">0</span><br>
 Basket: <span id="basket">0</span>/<span id="basketMax">3</span> — $<span id="basketValue">0</span><br>
 Fish Caught: <span id="caught">0</span><br>
 Pole Lv: <span id="poleLv">1</span> | Bait Lv: <span id="baitLv">1</span><br>
@@ -175,6 +243,7 @@ Last Fish: <span id="lastFish">None</span>
 <button id="reelBtn">REEL ⬆️</button>
 <button id="fryBtn">FRY 🔥</button>
 <button id="shopBtn">SHOP 🛒</button>
+<button id="leaderBtn">🏆</button>
 <button id="rightBtn">➡️</button>
 </div>
 
@@ -182,7 +251,9 @@ Last Fish: <span id="lastFish">None</span>
 <div class="box">
 <h1>CATCH & FRY</h1>
 <p>Cast it. Catch it. Fry it. Upgrade it.</p>
-<p>Catch fish, fry them for money, then buy better gear.</p>
+<p>Compete on the universal leaderboard.</p>
+<input id="playerName" maxlength="24" placeholder="Enter player name">
+<br>
 <button id="startBtn">START GAME</button>
 </div>
 </div>
@@ -206,9 +277,38 @@ Last Fish: <span id="lastFish">None</span>
 </div>
 </div>
 
+<div id="leaderboard">
+<div class="box">
+<h2>UNIVERSAL LEADERBOARD 🏆</h2>
+<p class="small">Scores submit when you fry your basket. Higher score wins.</p>
+<div id="leaderboardList">Loading leaderboard...</div>
+<div class="leaderButtons">
+<button id="submitScoreBtn">SUBMIT SCORE</button>
+<button id="refreshLeaderboardBtn">REFRESH</button>
+<button id="closeLeaderboard">BACK</button>
+</div>
+</div>
+</div>
+
 <canvas id="game"></canvas>
 
 <script>
+const SUPABASE_URL="https://fshvettlltcujmwvikfq.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_ARrX-vYhy8l-yhs6384S_g_n6214taB";
+const LEADERBOARD_TABLE="catch_and_fry_leaderboard";
+
+let supabaseClient=null;
+
+if(
+  SUPABASE_URL &&
+  SUPABASE_ANON_KEY &&
+  !SUPABASE_URL.includes("PASTE_") &&
+  !SUPABASE_ANON_KEY.includes("PASTE_") &&
+  window.supabase
+){
+  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+}
+
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 
@@ -223,9 +323,13 @@ function loadFirstImage(paths){
 
 const bgImg=loadFirstImage([
   "catch_and_fry_background.jpg",
+  "catch_and_fry_background(2).jpg",
   "./catch_and_fry_background.jpg",
+  "./catch_and_fry_background(2).jpg",
   "images/catch_and_fry_background.jpg",
-  "assets/catch_and_fry_background.jpg"
+  "images/catch_and_fry_background(2).jpg",
+  "assets/catch_and_fry_background.jpg",
+  "assets/catch_and_fry_background(2).jpg"
 ]);
 
 const castingGuy=loadFirstImage([
@@ -275,6 +379,7 @@ function W(){return innerWidth;}
 function H(){return innerHeight;}
 
 let audioCtx=null;
+
 function audioStart(){
 if(!audioCtx){
 audioCtx=new(window.AudioContext||window.webkitAudioContext)();
@@ -302,16 +407,44 @@ navigator.vibrate(pattern);
 }
 }
 
-function soundCast(){tone(420,.08,"sine",.08);setTimeout(()=>tone(260,.1,"sine",.07),70)}
-function soundReel(){tone(190,.08,"square",.06);setTimeout(()=>tone(230,.08,"square",.05),80)}
-function soundCatch(){tone(520,.09,"triangle",.13);setTimeout(()=>tone(720,.12,"triangle",.13),95);setTimeout(()=>tone(920,.13,"triangle",.11),190)}
-function soundLost(){tone(180,.16,"sawtooth",.12);setTimeout(()=>tone(120,.22,"sawtooth",.1),130)}
-function soundFry(){tone(90,.08,"sawtooth",.08);setTimeout(()=>tone(130,.09,"sawtooth",.07),80);setTimeout(()=>tone(170,.1,"sawtooth",.06),160)}
-function soundBuy(){tone(600,.09,"triangle",.12);setTimeout(()=>tone(850,.12,"triangle",.12),90)}
+function soundCast(){
+tone(420,.08,"sine",.08);
+setTimeout(()=>tone(260,.1,"sine",.07),70);
+}
+
+function soundReel(){
+tone(190,.08,"square",.06);
+setTimeout(()=>tone(230,.08,"square",.05),80);
+}
+
+function soundCatch(){
+tone(520,.09,"triangle",.13);
+setTimeout(()=>tone(720,.12,"triangle",.13),95);
+setTimeout(()=>tone(920,.13,"triangle",.11),190);
+}
+
+function soundLost(){
+tone(180,.16,"sawtooth",.12);
+setTimeout(()=>tone(120,.22,"sawtooth",.1),130);
+}
+
+function soundFry(){
+tone(90,.08,"sawtooth",.08);
+setTimeout(()=>tone(130,.09,"sawtooth",.07),80);
+setTimeout(()=>tone(170,.1,"sawtooth",.06),160);
+}
+
+function soundBuy(){
+tone(600,.09,"triangle",.12);
+setTimeout(()=>tone(850,.12,"triangle",.12),90);
+}
 
 let started=false;
+let playerName=localStorage.getItem("catchAndFryPlayerName") || "";
 let money=0;
 let caught=0;
+let score=0;
+let bestScore=Number(localStorage.getItem("catchAndFryBestScore") || 0);
 let basket=0;
 let basketValue=0;
 
@@ -329,6 +462,9 @@ let msgTimer=0;
 let fishJumpTimer=0;
 let splashTimer=0;
 let fryingAnimation=0;
+let lastSubmittedScore=0;
+
+document.getElementById("playerName").value=playerName;
 
 const fishTypes=[
 {name:"Tiny Fry",color:"#90e0ef",value:10,speed:1.8,size:28},
@@ -339,7 +475,15 @@ const fishTypes=[
 {name:"Kraken Nugget",color:"#f72585",value:175,speed:3.7,size:54}
 ];
 
-const player={x:90,y:0,w:58,h:78,speed:6,left:false,right:false};
+const player={
+x:90,
+y:0,
+w:58,
+h:78,
+speed:6,
+left:false,
+right:false
+};
 
 const cast={
 active:false,
@@ -357,6 +501,8 @@ let fishes=[];
 let bubbles=[];
 
 const moneyEl=document.getElementById("money");
+const scoreEl=document.getElementById("score");
+const bestScoreEl=document.getElementById("bestScore");
 const caughtEl=document.getElementById("caught");
 const basketEl=document.getElementById("basket");
 const basketMaxEl=document.getElementById("basketMax");
@@ -370,6 +516,30 @@ const shopMoney=document.getElementById("shopMoney");
 const poleCostEl=document.getElementById("poleCost");
 const baitCostEl=document.getElementById("baitCost");
 const basketCostEl=document.getElementById("basketCost");
+const leaderboardList=document.getElementById("leaderboardList");
+
+function cleanPlayerName(name){
+name=(name || "").trim();
+name=name.replace(/[^\w\s\-!.]/g,"");
+if(name.length>24){
+name=name.slice(0,24);
+}
+if(!name){
+name="Greasy Guest";
+}
+return name;
+}
+
+function currentScore(){
+return score;
+}
+
+function updateBestScore(){
+if(score>bestScore){
+bestScore=score;
+localStorage.setItem("catchAndFryBestScore",String(bestScore));
+}
+}
 
 function catchChance(){
 return Math.min(.95,.45+(poleLevel*.11)+(baitLevel*.10));
@@ -381,7 +551,11 @@ msgTimer=150;
 }
 
 function updateHud(){
+updateBestScore();
+
 moneyEl.textContent=money;
+scoreEl.textContent=currentScore();
+bestScoreEl.textContent=bestScore;
 caughtEl.textContent=caught;
 basketEl.textContent=basket;
 basketMaxEl.textContent=basketLimit;
@@ -425,9 +599,12 @@ spawnFish();
 
 function startGame(){
 audioStart();
+playerName=cleanPlayerName(document.getElementById("playerName").value);
+localStorage.setItem("catchAndFryPlayerName",playerName);
 started=true;
 document.getElementById("start").style.display="none";
 say("Press CAST to start fishing!");
+updateHud();
 }
 
 function castLine(){
@@ -479,7 +656,7 @@ soundReel();
 say("Reeling it in!");
 }
 
-function fryFish(){
+async function fryFish(){
 audioStart();
 
 if(basket<=0){
@@ -489,6 +666,8 @@ return;
 
 let earned=basketValue;
 money+=earned;
+score+=earned+(basket*15)+(poleLevel*5)+(baitLevel*5);
+
 basket=0;
 basketValue=0;
 fryingAnimation=100;
@@ -505,7 +684,8 @@ life:30+Math.random()*25
 });
 }
 
-say("Sizzle! Sold basket for $"+earned+"!");
+say("Sizzle! Sold basket for $"+earned+"! Score submitted.");
+await submitScore(false);
 }
 
 function openShop(){
@@ -526,6 +706,7 @@ return;
 }
 money-=poleCost;
 poleLevel++;
+score+=20;
 poleCost=Math.floor(poleCost*1.7);
 updateHud();
 soundBuy();
@@ -539,6 +720,7 @@ return;
 }
 money-=baitCost;
 baitLevel++;
+score+=15;
 baitCost=Math.floor(baitCost*1.6);
 updateHud();
 soundBuy();
@@ -552,10 +734,118 @@ return;
 }
 money-=basketCost;
 basketLimit+=2;
+score+=15;
 basketCost=Math.floor(basketCost*1.8);
 updateHud();
 soundBuy();
 say("Basket upgraded!");
+}
+
+async function openLeaderboard(){
+if(!started)return;
+document.getElementById("leaderboard").style.display="flex";
+await loadLeaderboard();
+}
+
+function closeLeaderboard(){
+document.getElementById("leaderboard").style.display="none";
+say("Back to fishing!");
+}
+
+async function submitScore(showMessage=true){
+playerName=cleanPlayerName(document.getElementById("playerName").value || playerName);
+localStorage.setItem("catchAndFryPlayerName",playerName);
+
+if(score<=0){
+if(showMessage){
+say("Catch and fry fish first!");
+}
+return;
+}
+
+if(score===lastSubmittedScore && !showMessage){
+return;
+}
+
+if(!supabaseClient){
+if(showMessage){
+say("Leaderboard needs Supabase connection.");
+}
+return;
+}
+
+lastSubmittedScore=score;
+
+const payload={
+player_name:playerName,
+score:score,
+money:money,
+fish_caught:caught,
+pole_level:poleLevel,
+bait_level:baitLevel,
+basket_limit:basketLimit
+};
+
+const {error}=await supabaseClient
+.from(LEADERBOARD_TABLE)
+.insert(payload);
+
+if(error){
+console.error(error);
+if(showMessage){
+say("Leaderboard submit failed.");
+}
+return;
+}
+
+if(showMessage){
+say("Score submitted!");
+}
+
+if(document.getElementById("leaderboard").style.display==="flex"){
+await loadLeaderboard();
+}
+}
+
+async function loadLeaderboard(){
+if(!supabaseClient){
+leaderboardList.innerHTML=
+"<p style='text-align:center'>Leaderboard is not connected yet.</p>"+
+"<p class='small' style='text-align:center'>Check the Supabase URL and publishable key.</p>";
+return;
+}
+
+leaderboardList.textContent="Loading leaderboard...";
+
+const {data,error}=await supabaseClient
+.from(LEADERBOARD_TABLE)
+.select("player_name,score,money,fish_caught,created_at")
+.order("score",{ascending:false})
+.order("created_at",{ascending:true})
+.limit(25);
+
+if(error){
+console.error(error);
+leaderboardList.innerHTML="<p style='text-align:center'>Could not load leaderboard.</p>";
+return;
+}
+
+if(!data || !data.length){
+leaderboardList.innerHTML="<p style='text-align:center'>No scores yet. Be the first!</p>";
+return;
+}
+
+leaderboardList.innerHTML=data.map((row,index)=>{
+const rank=index+1;
+const safeName=String(row.player_name || "Player").replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;"}[c]));
+return `
+<div class="lbRow">
+  <div class="lbRank">#${rank}</div>
+  <div class="lbName">${safeName}<br><span class="small">$${row.money} • ${row.fish_caught} fish</span></div>
+  <div class="lbScore">${row.score}</div>
+</div>
+`;
+}).join("");
 }
 
 function bind(id,fn){
@@ -571,7 +861,11 @@ bind("castBtn",castLine);
 bind("reelBtn",reelLine);
 bind("fryBtn",fryFish);
 bind("shopBtn",openShop);
+bind("leaderBtn",openLeaderboard);
 bind("closeShop",closeShop);
+bind("closeLeaderboard",closeLeaderboard);
+bind("submitScoreBtn",()=>submitScore(true));
+bind("refreshLeaderboardBtn",loadLeaderboard);
 bind("buyPole",buyPole);
 bind("buyBait",buyBait);
 bind("buyBasket",buyBasket);
@@ -595,6 +889,7 @@ if(k===" "||k==="c")castLine();
 if(k==="r")reelLine();
 if(k==="f")fryFish();
 if(k==="s")openShop();
+if(k==="l")openLeaderboard();
 });
 
 addEventListener("keyup",e=>{
@@ -654,11 +949,13 @@ if(cast.escapeRoll<catchChance()){
 caught++;
 basket++;
 basketValue+=cast.fish.value;
+score+=Math.floor(cast.fish.value*.35)+10;
 lastFishEl.textContent=cast.fish.name+" ($"+cast.fish.value+")";
 soundCatch();
 vibrate([80,40,80,40,160]);
 say("Caught "+cast.fish.name+"!");
 }else{
+score=Math.max(0,score-5);
 soundLost();
 vibrate([250]);
 say(cast.fish.name+" got away!");
@@ -782,6 +1079,7 @@ if(!drawCharacterImage(fryingGuy,drawX,drawY,drawW,drawH)){
 ctx.fillStyle="rgba(255,216,77,.9)";
 ctx.fillRect(drawX,drawY,drawW,drawH);
 }
+
 ctx.fillStyle="rgba(255,230,90,"+(0.18*t)+")";
 ctx.beginPath();
 ctx.arc(drawX+drawW*.65,drawY+drawH*.38,80*t,0,Math.PI*2);
