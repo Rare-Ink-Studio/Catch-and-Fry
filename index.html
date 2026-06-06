@@ -88,7 +88,13 @@ transform:translateY(4px);
 box-shadow:0 2px 0 #9f6a00;
 }
 
-#start,#shop,#leaderboard{
+button:disabled{
+opacity:.45;
+cursor:not-allowed;
+transform:none;
+}
+
+#start,#shop,#leaderboard,#loginPanel{
 position:fixed;
 inset:0;
 z-index:100;
@@ -103,7 +109,7 @@ color:white;
 background:linear-gradient(#ff7b54,#ffd166,#0b6d99);
 }
 
-#shop,#leaderboard{
+#shop,#leaderboard,#loginPanel{
 display:none;
 background:rgba(0,0,0,.88);
 }
@@ -141,10 +147,10 @@ font-size:14px;
 color:#eee;
 }
 
-#playerName{
+.loginInput{
 width:92%;
-max-width:360px;
-font-size:18px;
+max-width:380px;
+font-size:16px;
 font-weight:900;
 padding:13px 14px;
 border-radius:16px;
@@ -153,7 +159,19 @@ background:#fff;
 color:#111;
 text-align:center;
 box-sizing:border-box;
-margin:12px 0;
+margin:8px 0;
+}
+
+#profileStatus,#leaderProfileStatus{
+font-size:14px;
+font-weight:900;
+color:#fff;
+background:rgba(0,0,0,.4);
+border:1px solid rgba(255,216,77,.35);
+border-radius:14px;
+padding:10px;
+margin:12px auto;
+max-width:420px;
 }
 
 #leaderboardList{
@@ -161,7 +179,7 @@ max-height:54vh;
 overflow:auto;
 text-align:left;
 margin:12px auto;
-width:min(560px,92vw);
+width:min(620px,92vw);
 background:rgba(255,255,255,.08);
 border-radius:16px;
 padding:10px;
@@ -170,7 +188,7 @@ box-sizing:border-box;
 
 .lbRow{
 display:grid;
-grid-template-columns:44px 1fr 90px;
+grid-template-columns:44px 42px 1fr 90px;
 gap:8px;
 align-items:center;
 padding:10px 8px;
@@ -184,6 +202,15 @@ border-bottom:0;
 
 .lbRank{
 color:#ffd84d;
+}
+
+.lbAvatar{
+width:36px;
+height:36px;
+border-radius:50%;
+background:#ffd84d;
+object-fit:cover;
+border:2px solid rgba(255,255,255,.75);
 }
 
 .lbName{
@@ -204,20 +231,30 @@ justify-content:center;
 flex-wrap:wrap;
 }
 
+.linkBtn{
+display:inline-block;
+margin-top:10px;
+color:#ffd84d;
+font-weight:900;
+text-decoration:none;
+}
+
 @media(max-width:700px){
 #hud{font-size:12px;padding:7px 8px}
 #msg{font-size:18px;bottom:calc(102px + env(safe-area-inset-bottom))}
 #controls{gap:5px;bottom:calc(12px + env(safe-area-inset-bottom))}
 button{font-size:13px;padding:12px 9px;border-radius:14px}
 .box h1{font-size:38px}
-.lbRow{grid-template-columns:36px 1fr 76px;font-size:13px}
+.lbRow{grid-template-columns:34px 36px 1fr 72px;font-size:13px}
+.lbAvatar{width:32px;height:32px}
 }
 
 @media(max-width:430px){
 #controls{gap:4px}
 button{font-size:12px;padding:11px 7px}
-#hud{font-size:11px;max-width:50vw}
+#hud{font-size:11px;max-width:54vw}
 #msg{font-size:16px}
+.box{padding:18px}
 }
 </style>
 </head>
@@ -232,6 +269,7 @@ Basket: <span id="basket">0</span>/<span id="basketMax">3</span> — $<span id="
 Fish Caught: <span id="caught">0</span><br>
 Pole Lv: <span id="poleLv">1</span> | Bait Lv: <span id="baitLv">1</span><br>
 Catch Chance: <span id="chance">66</span>%<br>
+Profile: <span id="hudProfile">Guest</span><br>
 Last Fish: <span id="lastFish">None</span>
 </div>
 
@@ -244,6 +282,7 @@ Last Fish: <span id="lastFish">None</span>
 <button id="fryBtn">FRY 🔥</button>
 <button id="shopBtn">SHOP 🛒</button>
 <button id="leaderBtn">🏆</button>
+<button id="loginBtnSmall">LOGIN</button>
 <button id="rightBtn">➡️</button>
 </div>
 
@@ -251,10 +290,37 @@ Last Fish: <span id="lastFish">None</span>
 <div class="box">
 <h1>CATCH & FRY</h1>
 <p>Cast it. Catch it. Fry it. Upgrade it.</p>
-<p>Compete on the universal leaderboard.</p>
-<input id="playerName" maxlength="24" placeholder="Enter player name">
+<p>Play anytime. Log in with Dood Labs to join the leaderboard.</p>
+
+<div id="profileStatus">Checking Dood Labs profile...</div>
+
+<input id="loginEmail" class="loginInput" type="email" placeholder="Dood Labs email">
+<input id="loginPassword" class="loginInput" type="password" placeholder="Dood Labs password">
+
 <br>
+<button id="loginBtn">LOGIN FOR LEADERBOARD</button>
 <button id="startBtn">START GAME</button>
+<br>
+<a class="linkBtn" href="https://doodlabs.app" target="_blank" rel="noopener">Create a Dood Labs profile</a>
+</div>
+</div>
+
+<div id="loginPanel">
+<div class="box">
+<h2>DOOD LABS LOGIN</h2>
+<p class="small">Log in to submit Catch & Fry scores to the universal leaderboard.</p>
+
+<div id="loginPanelStatus">Not logged in.</div>
+
+<input id="panelLoginEmail" class="loginInput" type="email" placeholder="Dood Labs email">
+<input id="panelLoginPassword" class="loginInput" type="password" placeholder="Dood Labs password">
+
+<br>
+<button id="panelLoginBtn">LOGIN</button>
+<button id="logoutBtn">LOG OUT</button>
+<button id="closeLoginPanel">BACK</button>
+<br>
+<a class="linkBtn" href="https://doodlabs.app" target="_blank" rel="noopener">Create a Dood Labs profile</a>
 </div>
 </div>
 
@@ -280,11 +346,13 @@ Last Fish: <span id="lastFish">None</span>
 <div id="leaderboard">
 <div class="box">
 <h2>UNIVERSAL LEADERBOARD 🏆</h2>
-<p class="small">Scores submit when you fry your basket. Higher score wins.</p>
+<p class="small">Only Dood Labs profiles can submit scores.</p>
+<div id="leaderProfileStatus">Checking profile...</div>
 <div id="leaderboardList">Loading leaderboard...</div>
 <div class="leaderButtons">
 <button id="submitScoreBtn">SUBMIT SCORE</button>
 <button id="refreshLeaderboardBtn">REFRESH</button>
+<button id="leaderLoginBtn">LOGIN</button>
 <button id="closeLeaderboard">BACK</button>
 </div>
 </div>
@@ -296,14 +364,15 @@ Last Fish: <span id="lastFish">None</span>
 const SUPABASE_URL="https://fshvettlltcujmwvikfq.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_ARrX-vYhy8l-yhs6384S_g_n6214taB";
 const LEADERBOARD_TABLE="catch_and_fry_leaderboard";
+const PROFILE_TABLE="dood_profiles";
 
 let supabaseClient=null;
+let currentUser=null;
+let currentProfile=null;
 
 if(
   SUPABASE_URL &&
   SUPABASE_ANON_KEY &&
-  !SUPABASE_URL.includes("PASTE_") &&
-  !SUPABASE_ANON_KEY.includes("PASTE_") &&
   window.supabase
 ){
   supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
@@ -440,7 +509,6 @@ setTimeout(()=>tone(850,.12,"triangle",.12),90);
 }
 
 let started=false;
-let playerName=localStorage.getItem("catchAndFryPlayerName") || "";
 let money=0;
 let caught=0;
 let score=0;
@@ -463,8 +531,6 @@ let fishJumpTimer=0;
 let splashTimer=0;
 let fryingAnimation=0;
 let lastSubmittedScore=0;
-
-document.getElementById("playerName").value=playerName;
 
 const fishTypes=[
 {name:"Tiny Fry",color:"#90e0ef",value:10,speed:1.8,size:28},
@@ -511,23 +577,166 @@ const poleLvEl=document.getElementById("poleLv");
 const baitLvEl=document.getElementById("baitLv");
 const chanceEl=document.getElementById("chance");
 const lastFishEl=document.getElementById("lastFish");
+const hudProfileEl=document.getElementById("hudProfile");
 
 const shopMoney=document.getElementById("shopMoney");
 const poleCostEl=document.getElementById("poleCost");
 const baitCostEl=document.getElementById("baitCost");
 const basketCostEl=document.getElementById("basketCost");
-const leaderboardList=document.getElementById("leaderboardList");
 
-function cleanPlayerName(name){
-name=(name || "").trim();
-name=name.replace(/[^\w\s\-!.]/g,"");
-if(name.length>24){
-name=name.slice(0,24);
+const profileStatus=document.getElementById("profileStatus");
+const leaderProfileStatus=document.getElementById("leaderProfileStatus");
+const loginPanelStatus=document.getElementById("loginPanelStatus");
+const leaderboardList=document.getElementById("leaderboardList");
+const submitScoreBtn=document.getElementById("submitScoreBtn");
+
+function safeText(value){
+return String(value || "").replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;"}[c]));
 }
-if(!name){
-name="Greasy Guest";
+
+function profileName(){
+if(!currentProfile)return "Guest";
+return currentProfile.username || currentProfile.display_name || "Dood Player";
 }
-return name;
+
+function profileDisplay(){
+if(!currentProfile)return "Guest";
+const username=currentProfile.username ? "@"+currentProfile.username : "Dood Player";
+const display=currentProfile.display_name || username;
+return display+" "+username;
+}
+
+function setStatus(message){
+profileStatus.innerHTML=message;
+leaderProfileStatus.innerHTML=message;
+loginPanelStatus.innerHTML=message;
+}
+
+function updateAuthUi(){
+if(currentProfile){
+const name=safeText(profileDisplay());
+hudProfileEl.textContent=profileName();
+setStatus("Logged in as <strong>"+name+"</strong>. Leaderboard enabled.");
+submitScoreBtn.disabled=false;
+document.getElementById("loginBtnSmall").textContent="PROFILE";
+document.getElementById("leaderLoginBtn").textContent="PROFILE";
+}else if(currentUser){
+hudProfileEl.textContent="No Profile";
+setStatus("You are logged in, but no Dood Labs profile was found. Create your Dood Labs profile before joining the leaderboard.");
+submitScoreBtn.disabled=true;
+document.getElementById("loginBtnSmall").textContent="LOGIN";
+document.getElementById("leaderLoginBtn").textContent="LOGIN";
+}else{
+hudProfileEl.textContent="Guest";
+setStatus("Guest mode. You can play, but you must log in with a Dood Labs profile to submit leaderboard scores.");
+submitScoreBtn.disabled=true;
+document.getElementById("loginBtnSmall").textContent="LOGIN";
+document.getElementById("leaderLoginBtn").textContent="LOGIN";
+}
+}
+
+async function loadCurrentSession(){
+if(!supabaseClient){
+setStatus("Supabase is not connected.");
+return;
+}
+
+const {data,error}=await supabaseClient.auth.getSession();
+
+if(error){
+currentUser=null;
+currentProfile=null;
+updateAuthUi();
+return;
+}
+
+currentUser=data && data.session && data.session.user ? data.session.user : null;
+
+if(currentUser){
+await loadProfileForUser(currentUser.id);
+}else{
+currentProfile=null;
+updateAuthUi();
+}
+}
+
+async function loadProfileForUser(userId){
+currentProfile=null;
+
+const {data,error}=await supabaseClient
+.from(PROFILE_TABLE)
+.select("id,user_id,email,display_name,username,profile_pic_url,is_public,status")
+.eq("user_id",userId)
+.order("created_at",{ascending:true})
+.limit(1)
+.maybeSingle();
+
+if(error){
+console.error(error);
+currentProfile=null;
+updateAuthUi();
+return;
+}
+
+if(data){
+currentProfile=data;
+}else{
+currentProfile=null;
+}
+
+updateAuthUi();
+}
+
+async function loginWithDoodLabs(email,password){
+if(!supabaseClient){
+say("Supabase is not connected.");
+return;
+}
+
+email=(email || "").trim();
+password=(password || "").trim();
+
+if(!email || !password){
+say("Enter your Dood Labs email and password.");
+setStatus("Enter your Dood Labs email and password.");
+return;
+}
+
+setStatus("Logging in...");
+
+const {data,error}=await supabaseClient.auth.signInWithPassword({
+email:email,
+password:password
+});
+
+if(error){
+console.error(error);
+currentUser=null;
+currentProfile=null;
+updateAuthUi();
+say("Login failed. Check email and password.");
+setStatus("Login failed. Check email and password.");
+return;
+}
+
+currentUser=data.user;
+await loadProfileForUser(currentUser.id);
+
+if(currentProfile){
+say("Leaderboard profile connected!");
+}else{
+say("Logged in, but no Dood Labs profile found.");
+}
+}
+
+async function logoutDoodLabs(){
+if(!supabaseClient)return;
+
+await supabaseClient.auth.signOut();
+currentUser=null;
+currentProfile=null;
+updateAuthUi();
+say("Logged out.");
 }
 
 function currentScore(){
@@ -599,8 +808,6 @@ spawnFish();
 
 function startGame(){
 audioStart();
-playerName=cleanPlayerName(document.getElementById("playerName").value);
-localStorage.setItem("catchAndFryPlayerName",playerName);
 started=true;
 document.getElementById("start").style.display="none";
 say("Press CAST to start fishing!");
@@ -684,8 +891,12 @@ life:30+Math.random()*25
 });
 }
 
+if(currentProfile){
 say("Sizzle! Sold basket for $"+earned+"! Score submitted.");
 await submitScore(false);
+}else{
+say("Sizzle! Sold basket for $"+earned+"! Log in with Dood Labs to submit.");
+}
 }
 
 function openShop(){
@@ -744,6 +955,7 @@ say("Basket upgraded!");
 async function openLeaderboard(){
 if(!started)return;
 document.getElementById("leaderboard").style.display="flex";
+updateAuthUi();
 await loadLeaderboard();
 }
 
@@ -752,13 +964,28 @@ document.getElementById("leaderboard").style.display="none";
 say("Back to fishing!");
 }
 
-async function submitScore(showMessage=true){
-playerName=cleanPlayerName(document.getElementById("playerName").value || playerName);
-localStorage.setItem("catchAndFryPlayerName",playerName);
+function openLoginPanel(){
+document.getElementById("loginPanel").style.display="flex";
+updateAuthUi();
+}
 
+function closeLoginPanel(){
+document.getElementById("loginPanel").style.display="none";
+say("Back to fishing!");
+}
+
+async function submitScore(showMessage=true){
 if(score<=0){
 if(showMessage){
 say("Catch and fry fish first!");
+}
+return;
+}
+
+if(!currentUser || !currentProfile){
+if(showMessage){
+say("Create or log in to your Dood Labs profile to submit.");
+openLoginPanel();
 }
 return;
 }
@@ -777,7 +1004,11 @@ return;
 lastSubmittedScore=score;
 
 const payload={
-player_name:playerName,
+user_id:currentUser.id,
+profile_id:currentProfile.id,
+username:currentProfile.username || "doodplayer",
+display_name:currentProfile.display_name || currentProfile.username || "Dood Player",
+profile_pic_url:currentProfile.profile_pic_url || null,
 score:score,
 money:money,
 fish_caught:caught,
@@ -810,8 +1041,7 @@ await loadLeaderboard();
 async function loadLeaderboard(){
 if(!supabaseClient){
 leaderboardList.innerHTML=
-"<p style='text-align:center'>Leaderboard is not connected yet.</p>"+
-"<p class='small' style='text-align:center'>Check the Supabase URL and publishable key.</p>";
+"<p style='text-align:center'>Leaderboard is not connected.</p>";
 return;
 }
 
@@ -819,7 +1049,7 @@ leaderboardList.textContent="Loading leaderboard...";
 
 const {data,error}=await supabaseClient
 .from(LEADERBOARD_TABLE)
-.select("player_name,score,money,fish_caught,created_at")
+.select("username,display_name,profile_pic_url,score,money,fish_caught,created_at")
 .order("score",{ascending:false})
 .order("created_at",{ascending:true})
 .limit(25);
@@ -837,11 +1067,18 @@ return;
 
 leaderboardList.innerHTML=data.map((row,index)=>{
 const rank=index+1;
-const safeName=String(row.player_name || "Player").replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;"}[c]));
+const username=safeText(row.username || "doodplayer");
+const displayName=safeText(row.display_name || username);
+const avatar=safeText(row.profile_pic_url || "");
+const avatarHtml=avatar
+  ? `<img class="lbAvatar" src="${avatar}" alt="">`
+  : `<div class="lbAvatar"></div>`;
+
 return `
 <div class="lbRow">
   <div class="lbRank">#${rank}</div>
-  <div class="lbName">${safeName}<br><span class="small">$${row.money} • ${row.fish_caught} fish</span></div>
+  <div>${avatarHtml}</div>
+  <div class="lbName">${displayName}<br><span class="small">@${username} • $${row.money} • ${row.fish_caught} fish</span></div>
   <div class="lbScore">${row.score}</div>
 </div>
 `;
@@ -862,13 +1099,30 @@ bind("reelBtn",reelLine);
 bind("fryBtn",fryFish);
 bind("shopBtn",openShop);
 bind("leaderBtn",openLeaderboard);
+bind("loginBtnSmall",openLoginPanel);
+bind("leaderLoginBtn",openLoginPanel);
 bind("closeShop",closeShop);
 bind("closeLeaderboard",closeLeaderboard);
+bind("closeLoginPanel",closeLoginPanel);
 bind("submitScoreBtn",()=>submitScore(true));
 bind("refreshLeaderboardBtn",loadLeaderboard);
 bind("buyPole",buyPole);
 bind("buyBait",buyBait);
 bind("buyBasket",buyBasket);
+
+bind("loginBtn",()=>{
+const email=document.getElementById("loginEmail").value;
+const password=document.getElementById("loginPassword").value;
+loginWithDoodLabs(email,password);
+});
+
+bind("panelLoginBtn",()=>{
+const email=document.getElementById("panelLoginEmail").value;
+const password=document.getElementById("panelLoginPassword").value;
+loginWithDoodLabs(email,password);
+});
+
+bind("logoutBtn",logoutDoodLabs);
 
 function hold(id,on,off){
 let el=document.getElementById(id);
@@ -898,6 +1152,19 @@ if(k==="a"||k==="arrowleft")player.left=false;
 if(k==="d"||k==="arrowright")player.right=false;
 });
 
+if(supabaseClient){
+supabaseClient.auth.onAuthStateChange(async(event,session)=>{
+currentUser=session && session.user ? session.user : null;
+if(currentUser){
+await loadProfileForUser(currentUser.id);
+}else{
+currentProfile=null;
+updateAuthUi();
+}
+});
+}
+
+loadCurrentSession();
 resetFish();
 updateHud();
 
