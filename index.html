@@ -106,7 +106,67 @@ color:white;
 }
 
 #start{
-background:linear-gradient(#ff7b54,#ffd166,#0b6d99);
+background:
+linear-gradient(90deg,rgba(5,8,18,.76) 0%,rgba(5,8,18,.28) 48%,rgba(5,8,18,.60) 100%),
+url("catch_and_fry_background.jpg") center center / cover no-repeat;
+overflow:auto;
+padding:24px 18px;
+box-sizing:border-box;
+}
+
+#start::before{
+content:"";
+position:absolute;
+inset:0;
+pointer-events:none;
+background:linear-gradient(180deg,rgba(18,10,38,.24),rgba(0,0,0,.42));
+}
+
+#start .box{
+position:relative;
+z-index:2;
+width:min(470px,92vw);
+margin-left:min(8vw,120px);
+background:linear-gradient(145deg,rgba(15,11,19,.88),rgba(35,18,10,.78));
+border:2px solid rgba(255,216,77,.75);
+box-shadow:0 12px 36px rgba(0,0,0,.72),0 0 28px rgba(255,88,23,.16);
+backdrop-filter:blur(3px);
+}
+
+#start .box h1{
+font-family:Impact,Arial Black,sans-serif;
+font-size:clamp(44px,7vw,68px);
+line-height:.92;
+color:#ffe16b;
+text-shadow:3px 4px 0 #9e2d0d,0 0 15px rgba(255,98,32,.6);
+letter-spacing:1.5px;
+}
+
+#start .box p:first-of-type{
+font-size:19px;
+font-weight:900;
+margin:14px 0 6px;
+color:#fff4d0;
+}
+
+#start .box p:nth-of-type(2){
+font-size:14px;
+margin:0 0 14px;
+color:#ffe9b0;
+}
+
+.startCharacter{
+position:absolute;
+z-index:1;
+left:max(2vw,14px);
+bottom:max(1vh,8px);
+width:min(38vw,520px);
+height:auto;
+max-height:72vh;
+object-fit:contain;
+object-position:left bottom;
+filter:drop-shadow(0 10px 11px rgba(0,0,0,.7));
+pointer-events:none;
 }
 
 #shop,#leaderboard,#loginPanel{
@@ -255,6 +315,9 @@ button{font-size:12px;padding:11px 7px}
 #hud{font-size:11px;max-width:54vw}
 #msg{font-size:16px}
 .box{padding:18px}
+#start{padding:14px 12px;align-items:flex-start}
+#start .box{margin:20px auto 18px;width:min(460px,94vw)}
+.startCharacter{display:none}
 }
 </style>
 </head>
@@ -287,10 +350,11 @@ Last Fish: <span id="lastFish">None</span>
 </div>
 
 <div id="start">
+<img class="startCharacter" src="characters/casting_guy.png" alt="" aria-hidden="true">
 <div class="box">
-<h1>CATCH & FRY</h1>
-<p>Cast it. Catch it. Fry it. Upgrade it.</p>
-<p>Play anytime. Log in with Dood Labs to join the leaderboard.</p>
+<h1>CATCH &amp; FRY</h1>
+<p>WELCOME TO THE FRY SHACK</p>
+<p>Cast it. Catch it. Fry it. Upgrade it. Log in with Dood Labs to join the leaderboard.</p>
 
 <div id="profileStatus">Checking Dood Labs profile...</div>
 
