@@ -246,6 +246,60 @@ button{font-size:12px;padding:11px 7px}
 #msg{font-size:16px}
 .box{padding:18px}
 }
+
+/* Catch & Fry: harbor-themed game-specific Passport leaderboard. */
+#leaderboard {
+ background: linear-gradient(180deg,rgba(0,12,20,.65),rgba(0,7,14,.92)),url("catch_and_fry_background.jpg") center/cover no-repeat;
+ padding:12px; box-sizing:border-box;
+}
+#leaderboard .fishBoard {
+ width:min(840px,100%); max-width:none; max-height:min(90dvh,780px); overflow:auto;
+ box-sizing:border-box; padding:clamp(16px,3vw,30px);
+ background:repeating-linear-gradient(0deg,transparent 0 46px,rgba(0,0,0,.18) 47px 49px),linear-gradient(135deg,#3a2517,#191b1a 73%);
+ border:3px solid #dcb765; border-radius:24px;
+ box-shadow:0 24px 70px rgba(0,0,0,.8),inset 0 0 0 2px rgba(255,225,151,.14);
+ color:#fff4d5; text-align:left; overscroll-behavior:contain;
+}
+.fishBoardHeading { display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px; }
+.fishBoardEmblem { display:grid;place-items:center;flex-shrink:0;width:52px;height:52px;font-size:29px;border-radius:50%;background:#0e3940;border:2px solid #e8b84c;box-shadow:0 3px 0 #120c06; }
+#leaderboard .fishBoardHeading h2 { font-size:clamp(22px,4.1vw,35px);letter-spacing:.055em;line-height:1.16;margin:0;color:#ffe19c;text-shadow:0 3px 0 #100b07; }
+#leaderboard .fishBoardHeading h2 span {display:block;color:#8ee2eb;font-size:.56em;letter-spacing:.17em;margin-top:5px;}
+#leaderboardList { background:none; width:100%; max-height:54dvh; margin:0 auto 17px;padding:0;overflow:auto; }
+.fishPodium { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:end;padding:9px 2px 16px; }
+.fishPodiumCard { box-sizing:border-box;min-width:0;text-align:center;padding:13px 9px;border:1px solid #a08b63;border-radius:15px;background:linear-gradient(160deg,#244850,#142a2d);box-shadow:0 7px 17px rgba(0,0,0,.35); }
+.fishPodiumCard[data-place="1"] {order:2;background:linear-gradient(145deg,#72512a,#2c352b 80%);border:2px solid #ffde83;transform:translateY(-7px);box-shadow:0 0 22px rgba(255,210,92,.2);}
+.fishPodiumCard[data-place="2"] {order:1;}
+.fishPodiumCard[data-place="3"] {order:3;}
+.fishMedal {font-size:28px;line-height:1.18;}
+.fishPodiumName {font-weight:900;margin:9px 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fishPodiumHandle {font-size:11px;color:#b1d8d2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fishPodiumScore {font-size:clamp(21px,3.4vw,31px);font-weight:900;color:#ffe78b;margin-top:9px;font-variant-numeric:tabular-nums;}
+.fishBoardRest {display:grid;gap:7px;}
+#leaderboard .lbRow {background:rgba(5,33,40,.82);border:1px solid #4f726d;border-radius:11px;grid-template-columns:40px 38px minmax(0,1fr) auto;gap:9px;padding:10px 12px;}
+#leaderboard .lbRank {color:#ffe09a;}
+#leaderboard .lbAvatar {border-color:#e4c485;background:#15525c;width:34px;height:34px;}
+#leaderboard .lbName {font-size:14px;}
+#leaderboard .lbName .small {font-size:11px;color:#a8d7d9;}
+#leaderboard .lbScore {color:#fff0a2;font-size:19px;font-variant-numeric:tabular-nums;}
+#leaderboard .leaderButtons {padding-top:11px;border-top:1px solid rgba(255,221,141,.32);}
+#leaderboard .leaderButtons button {border:1px solid #ffe397;border-radius:11px;padding:11px 14px;box-shadow:0 3px 0 #79500e;background:linear-gradient(#ffe487,#f5b830);}
+#leaderboard .leaderButtons button:last-child {background:#163b43;border-color:#76afae;color:#fff6d5;box-shadow:0 3px 0 #082025;}
+.fishBoardEmpty {border:1px dashed #7caca7;border-radius:12px;padding:30px 12px;text-align:center;color:#d7eded;}
+@media(max-width:540px){
+ #leaderboard {padding:7px;}
+ #leaderboard .fishBoard {max-height:92dvh;padding:13px;}
+ .fishBoardEmblem {width:39px;height:39px;font-size:22px;}
+ .fishPodium {grid-template-columns:1fr;gap:7px;padding:4px 0 14px;}
+ .fishPodiumCard,.fishPodiumCard[data-place="1"] {transform:none;order:initial;display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:8px;text-align:left;padding:9px 10px;}
+ .fishPodiumName {margin:0;}
+ .fishPodiumHandle {display:none;}
+ .fishPodiumScore {margin:0;font-size:18px;}
+ .fishMedal {font-size:23px;}
+ #leaderboard .lbRow {grid-template-columns:31px 28px minmax(0,1fr) auto;gap:5px;padding:8px 7px;}
+ #leaderboard .lbAvatar {width:26px;height:26px;font-size:15px;}
+ #leaderboard .lbScore {font-size:15px;}
+ #leaderboard .leaderButtons button {padding:10px 9px;font-size:12px;}
+}
 </style>
 </head>
 
@@ -305,8 +359,8 @@ Last Fish: <span id="lastFish">None</span>
 </div>
 
 <div id="leaderboard">
-<div class="box">
-<h2>CATCH & FRY LEADERBOARD 🏆</h2>
+<div class="box fishBoard" role="dialog" aria-modal="true" aria-label="Catch and Fry leaderboard">
+<div class="fishBoardHeading"><span class="fishBoardEmblem" aria-hidden="true">🎣</span><h2>CATCH & FRY <span>LEADERBOARD 🏆</span></h2></div>
 <div id="leaderboardList">Loading leaderboard...</div>
 <div class="leaderButtons">
 <button id="submitScoreBtn">SUBMIT SCORE</button>
@@ -940,24 +994,28 @@ return;
 }
 
 if(!data || !data.length){
-leaderboardList.innerHTML="<p style='text-align:center'>No scores yet. Be the first!</p>";
+leaderboardList.innerHTML="<div class='fishBoardEmpty'>No scores yet.</div>";
 return;
 }
 
-leaderboardList.innerHTML=data.map((row,index)=>{
-const rank=Number(row.rank || index+1);
-const username=safeText(row.passport_username || "player");
-const displayName=safeText(row.display_name || username);
-
-return `
-<div class="lbRow">
-  <div class="lbRank">#${rank}</div>
-  <div class="lbAvatar" aria-hidden="true">🎣</div>
-  <div class="lbName">${displayName}<br><span class="small">@${username}</span></div>
-  <div class="lbScore">${row.score}</div>
-</div>
-`;
+const medals=["🥇","🥈","🥉"];
+const scoreText=row=>{
+const n=Number(row.score);
+return Number.isFinite(n)&&n>=0?n.toLocaleString(undefined,{maximumFractionDigits:0}):"—";
+};
+const podium=data.slice(0,3).map((row,index)=>{
+const rank=Number(row.rank||index+1);
+const username=safeText(row.passport_username||"player");
+const displayName=safeText(row.display_name||username);
+return `<div class="fishPodiumCard" data-place="${rank}"><div class="fishMedal" aria-label="Rank ${rank}">${medals[index]}</div><div><div class="fishPodiumName">${displayName}</div><div class="fishPodiumHandle">@${username}</div></div><div class="fishPodiumScore">${scoreText(row)}</div></div>`;
 }).join("");
+const others=data.slice(3).map((row,index)=>{
+const rank=Number(row.rank||index+4);
+const username=safeText(row.passport_username||"player");
+const displayName=safeText(row.display_name||username);
+return `<div class="lbRow"><div class="lbRank">#${rank}</div><div class="lbAvatar" aria-hidden="true">🐟</div><div class="lbName">${displayName}<br><span class="small">@${username}</span></div><div class="lbScore">${scoreText(row)}</div></div>`;
+}).join("");
+leaderboardList.innerHTML=`<div class="fishPodium">${podium}</div>${others?`<div class="fishBoardRest">${others}</div>`:""}`;
 }
 
 function bind(id,fn){
