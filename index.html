@@ -246,7 +246,6 @@ button{font-size:12px;padding:11px 7px}
 #msg{font-size:16px}
 .box{padding:18px}
 }
-#start #profileStatus, #start #openOneHomeLink { display: none !important; }
 </style>
 </head>
 
@@ -273,7 +272,6 @@ Last Fish: <span id="lastFish">None</span>
 <button id="fryBtn">FRY 🔥</button>
 <button id="shopBtn">SHOP 🛒</button>
 <button id="leaderBtn">🏆</button>
-<button id="passportBtnSmall">PASSPORT</button>
 <button id="rightBtn">➡️</button>
 </div>
 
@@ -282,11 +280,8 @@ Last Fish: <span id="lastFish">None</span>
 <h1>CATCH & FRY</h1>
 <p>Cast it. Catch it. Fry it. Upgrade it.</p>
 
-<div id="profileStatus">Waiting for your One Home Passport...</div>
 
 <button id="startBtn">START GAME</button>
-<br>
-<a class="linkBtn" id="openOneHomeLink" href="https://doodlabs.app" target="_blank" rel="noopener">Open One Home to link your Passport</a>
 </div>
 </div>
 
@@ -553,9 +548,7 @@ const poleCostEl=document.getElementById("poleCost");
 const baitCostEl=document.getElementById("baitCost");
 const basketCostEl=document.getElementById("basketCost");
 
-const profileStatus=document.getElementById("profileStatus");
 const leaderProfileStatus=document.getElementById("leaderProfileStatus");
-const openOneHomeLink=document.getElementById("openOneHomeLink");
 const leaderboardList=document.getElementById("leaderboardList");
 const submitScoreBtn=document.getElementById("submitScoreBtn");
 const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -578,7 +571,6 @@ return username && display!==username ? display+" "+username : display;
 }
 
 function setStatus(message){
-profileStatus.textContent=message;
 leaderProfileStatus.textContent=message;
 }
 
@@ -587,14 +579,10 @@ if(passportLaunch){
 hudProfileEl.textContent=profileName();
 setStatus("Passport linked automatically: "+profileDisplay()+". Scores save as UNVERIFIED.");
 submitScoreBtn.disabled=false;
-document.getElementById("passportBtnSmall").textContent="PASSPORT ✓";
-openOneHomeLink.hidden=true;
 }else{
 hudProfileEl.textContent="Guest";
 setStatus("Guest play is available. Open Catch & Fry through One Home to link your Passport and save scores.");
 submitScoreBtn.disabled=true;
-document.getElementById("passportBtnSmall").textContent="PASSPORT";
-openOneHomeLink.hidden=false;
 }
 }
 
@@ -635,16 +623,7 @@ username:cleanPassportLabel(data.passport?.username),
 display_name:cleanPassportLabel(data.passport?.display_name)
 });
 updatePassportUi();
-say("One Home Passport linked. Leaderboard saving is ready.");
 });
-
-function showPassportStatus(){
-if(passportLaunch){
-say("Passport linked: "+profileDisplay()+". Scores are UNVERIFIED.");
-}else{
-say("Open Catch & Fry through One Home to link your Passport automatically.");
-}
-}
 
 function currentScore(){
 return score;
@@ -802,7 +781,7 @@ if(passportLaunch){
 say("Sizzle! Sold basket for $"+earned+"! Saving score...");
 await submitScore(true);
 }else{
-say("Sizzle! Sold basket for $"+earned+"! Open through One Home to save scores.");
+say("Sizzle! Sold basket for $"+earned+"! Score not saved.");
 }
 }
 
@@ -884,7 +863,7 @@ passportLaunch=null;
 passportInfo=null;
 updatePassportUi();
 if(showMessage){
-say("Open Catch & Fry through One Home to link your Passport and submit.");
+say("Score not saved.");
 }
 return;
 }
@@ -997,7 +976,6 @@ bind("reelBtn",reelLine);
 bind("fryBtn",fryFish);
 bind("shopBtn",openShop);
 bind("leaderBtn",openLeaderboard);
-bind("passportBtnSmall",showPassportStatus);
 bind("closeShop",closeShop);
 bind("closeLeaderboard",closeLeaderboard);
 bind("submitScoreBtn",()=>submitScore(true));
