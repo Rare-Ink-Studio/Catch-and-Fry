@@ -94,7 +94,7 @@ cursor:not-allowed;
 transform:none;
 }
 
-#start,#shop,#leaderboard,#loginPanel{
+#start,#shop,#leaderboard{
 position:fixed;
 inset:0;
 z-index:100;
@@ -111,7 +111,7 @@ linear-gradient(rgba(4,8,18,.22),rgba(4,8,18,.60)),
 url("catch_and_fry_background.jpg") center/cover no-repeat;
 }
 
-#shop,#leaderboard,#loginPanel{
+#shop,#leaderboard{
 display:none;
 background:rgba(0,0,0,.88);
 }
@@ -147,21 +147,6 @@ font-size:17px;
 .small{
 font-size:14px;
 color:#eee;
-}
-
-.loginInput{
-width:92%;
-max-width:380px;
-font-size:16px;
-font-weight:900;
-padding:13px 14px;
-border-radius:16px;
-border:3px solid #ffd84d;
-background:#fff;
-color:#111;
-text-align:center;
-box-sizing:border-box;
-margin:8px 0;
 }
 
 #profileStatus,#leaderProfileStatus{
@@ -213,6 +198,9 @@ border-radius:50%;
 background:#ffd84d;
 object-fit:cover;
 border:2px solid rgba(255,255,255,.75);
+display:grid;
+place-items:center;
+font-size:18px;
 }
 
 .lbName{
@@ -284,7 +272,7 @@ Last Fish: <span id="lastFish">None</span>
 <button id="fryBtn">FRY 🔥</button>
 <button id="shopBtn">SHOP 🛒</button>
 <button id="leaderBtn">🏆</button>
-<button id="loginBtnSmall">LOGIN</button>
+<button id="passportBtnSmall">PASSPORT</button>
 <button id="rightBtn">➡️</button>
 </div>
 
@@ -292,37 +280,13 @@ Last Fish: <span id="lastFish">None</span>
 <div class="box">
 <h1>CATCH & FRY</h1>
 <p>Cast it. Catch it. Fry it. Upgrade it.</p>
-<p>Play anytime. Log in with Dood Labs to join the leaderboard.</p>
+<p>Play anytime. Your One Home Passport links automatically when you enter from One Home.</p>
 
-<div id="profileStatus">Checking Dood Labs profile...</div>
+<div id="profileStatus">Waiting for your One Home Passport...</div>
 
-<input id="loginEmail" class="loginInput" type="email" placeholder="Dood Labs email">
-<input id="loginPassword" class="loginInput" type="password" placeholder="Dood Labs password">
-
-<br>
-<button id="loginBtn">LOGIN FOR LEADERBOARD</button>
 <button id="startBtn">START GAME</button>
 <br>
-<a class="linkBtn" href="https://doodlabs.app" target="_blank" rel="noopener">Create a Dood Labs profile</a>
-</div>
-</div>
-
-<div id="loginPanel">
-<div class="box">
-<h2>DOOD LABS LOGIN</h2>
-<p class="small">Log in to submit Catch & Fry scores to the universal leaderboard.</p>
-
-<div id="loginPanelStatus">Not logged in.</div>
-
-<input id="panelLoginEmail" class="loginInput" type="email" placeholder="Dood Labs email">
-<input id="panelLoginPassword" class="loginInput" type="password" placeholder="Dood Labs password">
-
-<br>
-<button id="panelLoginBtn">LOGIN</button>
-<button id="logoutBtn">LOG OUT</button>
-<button id="closeLoginPanel">BACK</button>
-<br>
-<a class="linkBtn" href="https://doodlabs.app" target="_blank" rel="noopener">Create a Dood Labs profile</a>
+<a class="linkBtn" id="openOneHomeLink" href="https://doodlabs.app" target="_blank" rel="noopener">Open One Home to link your Passport</a>
 </div>
 </div>
 
@@ -348,13 +312,12 @@ Last Fish: <span id="lastFish">None</span>
 <div id="leaderboard">
 <div class="box">
 <h2>UNIVERSAL LEADERBOARD 🏆</h2>
-<p class="small">Only Dood Labs profiles can submit scores.</p>
-<div id="leaderProfileStatus">Checking profile...</div>
+<p class="small">Scores use your One Home Passport and are shown as UNVERIFIED.</p>
+<div id="leaderProfileStatus">Waiting for your One Home Passport...</div>
 <div id="leaderboardList">Loading leaderboard...</div>
 <div class="leaderButtons">
 <button id="submitScoreBtn">SUBMIT SCORE</button>
 <button id="refreshLeaderboardBtn">REFRESH</button>
-<button id="leaderLoginBtn">LOGIN</button>
 <button id="closeLeaderboard">BACK</button>
 </div>
 </div>
@@ -365,19 +328,23 @@ Last Fish: <span id="lastFish">None</span>
 <script>
 const SUPABASE_URL="https://fshvettlltcujmwvikfq.supabase.co";
 const SUPABASE_ANON_KEY="sb_publishable_ARrX-vYhy8l-yhs6384S_g_n6214taB";
-const LEADERBOARD_TABLE="catch_and_fry_leaderboard";
-const PROFILE_TABLE="dood_profiles";
+const GAME_RESULT_URL=SUPABASE_URL+"/functions/v1/onehome-game-result";
+const GAME_KEY="catch_and_fry";
+const GAME_ORIGIN="https://rare-ink-studio.github.io";
+const ONE_HOME_ORIGINS=new Set(["https://doodlabs.app","https://one-home-test.netlify.app"]);
 
 let supabaseClient=null;
-let currentUser=null;
-let currentProfile=null;
+let passportLaunch=null;
+let passportInfo=null;
 
 if(
   SUPABASE_URL &&
   SUPABASE_ANON_KEY &&
   window.supabase
 ){
-  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{
+    auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
+  });
 }
 
 const canvas=document.getElementById("game");
@@ -588,157 +555,95 @@ const basketCostEl=document.getElementById("basketCost");
 
 const profileStatus=document.getElementById("profileStatus");
 const leaderProfileStatus=document.getElementById("leaderProfileStatus");
-const loginPanelStatus=document.getElementById("loginPanelStatus");
+const openOneHomeLink=document.getElementById("openOneHomeLink");
 const leaderboardList=document.getElementById("leaderboardList");
 const submitScoreBtn=document.getElementById("submitScoreBtn");
+const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const capabilityPattern=/^[0-9a-f]{64}$/;
 
 function safeText(value){
 return String(value || "").replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;","\"":"&quot;"}[c]));
 }
 
 function profileName(){
-if(!currentProfile)return "Guest";
-return currentProfile.username || currentProfile.display_name || "Dood Player";
+if(!passportLaunch)return "Guest";
+return passportInfo?.username || passportInfo?.display_name || "Passport";
 }
 
 function profileDisplay(){
-if(!currentProfile)return "Guest";
-const username=currentProfile.username ? "@"+currentProfile.username : "Dood Player";
-const display=currentProfile.display_name || username;
-return display+" "+username;
+if(!passportLaunch)return "Guest";
+const username=passportInfo?.username ? "@"+passportInfo.username : "";
+const display=passportInfo?.display_name || username || "One Home Passport";
+return username && display!==username ? display+" "+username : display;
 }
 
 function setStatus(message){
-profileStatus.innerHTML=message;
-leaderProfileStatus.innerHTML=message;
-loginPanelStatus.innerHTML=message;
+profileStatus.textContent=message;
+leaderProfileStatus.textContent=message;
 }
 
-function updateAuthUi(){
-if(currentProfile){
-const name=safeText(profileDisplay());
+function updatePassportUi(){
+if(passportLaunch){
 hudProfileEl.textContent=profileName();
-setStatus("Logged in as <strong>"+name+"</strong>. Leaderboard enabled.");
+setStatus("Passport linked automatically: "+profileDisplay()+". Scores save as UNVERIFIED.");
 submitScoreBtn.disabled=false;
-document.getElementById("loginBtnSmall").textContent="PROFILE";
-document.getElementById("leaderLoginBtn").textContent="PROFILE";
-}else if(currentUser){
-hudProfileEl.textContent="No Profile";
-setStatus("You are logged in, but no Dood Labs profile was found. Create your Dood Labs profile before joining the leaderboard.");
-submitScoreBtn.disabled=true;
-document.getElementById("loginBtnSmall").textContent="LOGIN";
-document.getElementById("leaderLoginBtn").textContent="LOGIN";
+document.getElementById("passportBtnSmall").textContent="PASSPORT ✓";
+openOneHomeLink.hidden=true;
 }else{
 hudProfileEl.textContent="Guest";
-setStatus("Guest mode. You can play, but you must log in with a Dood Labs profile to submit leaderboard scores.");
+setStatus("Guest play is available. Open Catch & Fry through One Home to link your Passport and save scores.");
 submitScoreBtn.disabled=true;
-document.getElementById("loginBtnSmall").textContent="LOGIN";
-document.getElementById("leaderLoginBtn").textContent="LOGIN";
+document.getElementById("passportBtnSmall").textContent="PASSPORT";
+openOneHomeLink.hidden=false;
 }
 }
 
-async function loadCurrentSession(){
-if(!supabaseClient){
-setStatus("Supabase is not connected.");
+function validLaunch(data){
+const expires=Date.parse(String(data?.expires_at || ""));
+return data?.game_key===GAME_KEY && data?.target_origin===GAME_ORIGIN &&
+uuidPattern.test(String(data?.session_id || "")) &&
+capabilityPattern.test(String(data?.capability || "")) &&
+Number.isFinite(expires) && expires>Date.now() && expires<=Date.now()+(91*60*1000);
+}
+
+function cleanPassportLabel(value){
+return String(value || "").replace(/[\u0000-\u001f\u007f]/g,"").trim().slice(0,64);
+}
+
+function postReady(origin){
+if(window.parent===window || !ONE_HOME_ORIGINS.has(origin))return;
+window.parent.postMessage({type:"OH_GAME_READY",version:1,game_key:GAME_KEY},origin);
+}
+
+window.addEventListener("message",event=>{
+if(event.source!==window.parent || !ONE_HOME_ORIGINS.has(event.origin))return;
+const data=event.data;
+if(data?.type==="OH_GAME_PING" && data.game_key===GAME_KEY){
+postReady(event.origin);
 return;
 }
-
-const {data,error}=await supabaseClient.auth.getSession();
-
-if(error){
-currentUser=null;
-currentProfile=null;
-updateAuthUi();
-return;
-}
-
-currentUser=data && data.session && data.session.user ? data.session.user : null;
-
-if(currentUser){
-await loadProfileForUser(currentUser.id);
-}else{
-currentProfile=null;
-updateAuthUi();
-}
-}
-
-async function loadProfileForUser(userId){
-currentProfile=null;
-
-const {data,error}=await supabaseClient
-.from(PROFILE_TABLE)
-.select("id,user_id,email,display_name,username,profile_pic_url,is_public,status")
-.eq("user_id",userId)
-.order("created_at",{ascending:true})
-.limit(1)
-.maybeSingle();
-
-if(error){
-console.error(error);
-currentProfile=null;
-updateAuthUi();
-return;
-}
-
-if(data){
-currentProfile=data;
-}else{
-currentProfile=null;
-}
-
-updateAuthUi();
-}
-
-async function loginWithDoodLabs(email,password){
-if(!supabaseClient){
-say("Supabase is not connected.");
-return;
-}
-
-email=(email || "").trim();
-password=(password || "").trim();
-
-if(!email || !password){
-say("Enter your Dood Labs email and password.");
-setStatus("Enter your Dood Labs email and password.");
-return;
-}
-
-setStatus("Logging in...");
-
-const {data,error}=await supabaseClient.auth.signInWithPassword({
-email:email,
-password:password
+if(data?.type!=="OH_GAME_LAUNCH" || !validLaunch(data))return;
+passportLaunch=Object.freeze({
+game_key:GAME_KEY,
+target_origin:GAME_ORIGIN,
+session_id:String(data.session_id),
+capability:String(data.capability),
+expires_at:String(data.expires_at)
+});
+passportInfo=Object.freeze({
+username:cleanPassportLabel(data.passport?.username),
+display_name:cleanPassportLabel(data.passport?.display_name)
+});
+updatePassportUi();
+say("One Home Passport linked. Leaderboard saving is ready.");
 });
 
-if(error){
-console.error(error);
-currentUser=null;
-currentProfile=null;
-updateAuthUi();
-say("Login failed. Check email and password.");
-setStatus("Login failed. Check email and password.");
-return;
-}
-
-currentUser=data.user;
-await loadProfileForUser(currentUser.id);
-
-if(currentProfile){
-say("Leaderboard profile connected!");
+function showPassportStatus(){
+if(passportLaunch){
+say("Passport linked: "+profileDisplay()+". Scores are UNVERIFIED.");
 }else{
-say("Logged in, but no Dood Labs profile found.");
+say("Open Catch & Fry through One Home to link your Passport automatically.");
 }
-}
-
-async function logoutDoodLabs(){
-if(!supabaseClient)return;
-
-await supabaseClient.auth.signOut();
-currentUser=null;
-currentProfile=null;
-updateAuthUi();
-say("Logged out.");
 }
 
 function currentScore(){
@@ -893,11 +798,11 @@ life:30+Math.random()*25
 });
 }
 
-if(currentProfile){
-say("Sizzle! Sold basket for $"+earned+"! Score submitted.");
-await submitScore(false);
+if(passportLaunch){
+say("Sizzle! Sold basket for $"+earned+"! Saving score...");
+await submitScore(true);
 }else{
-say("Sizzle! Sold basket for $"+earned+"! Log in with Dood Labs to submit.");
+say("Sizzle! Sold basket for $"+earned+"! Open through One Home to save scores.");
 }
 }
 
@@ -957,22 +862,12 @@ say("Basket upgraded!");
 async function openLeaderboard(){
 if(!started)return;
 document.getElementById("leaderboard").style.display="flex";
-updateAuthUi();
+updatePassportUi();
 await loadLeaderboard();
 }
 
 function closeLeaderboard(){
 document.getElementById("leaderboard").style.display="none";
-say("Back to fishing!");
-}
-
-function openLoginPanel(){
-document.getElementById("loginPanel").style.display="flex";
-updateAuthUi();
-}
-
-function closeLoginPanel(){
-document.getElementById("loginPanel").style.display="none";
 say("Back to fishing!");
 }
 
@@ -984,46 +879,50 @@ say("Catch and fry fish first!");
 return;
 }
 
-if(!currentUser || !currentProfile){
+if(!validLaunch(passportLaunch)){
+passportLaunch=null;
+passportInfo=null;
+updatePassportUi();
 if(showMessage){
-say("Create or log in to your Dood Labs profile to submit.");
-openLoginPanel();
+say("Open Catch & Fry through One Home to link your Passport and submit.");
 }
 return;
 }
 
-if(score===lastSubmittedScore && !showMessage){
+if(score===lastSubmittedScore){
+if(showMessage)say("That score is already saved.");
 return;
 }
-
-if(!supabaseClient){
-if(showMessage){
-say("Leaderboard needs Supabase connection.");
-}
-return;
-}
-
-lastSubmittedScore=score;
 
 const payload={
-user_id:currentUser.id,
-profile_id:currentProfile.id,
-username:currentProfile.username || "doodplayer",
-display_name:currentProfile.display_name || currentProfile.username || "Dood Player",
-profile_pic_url:currentProfile.profile_pic_url || null,
-score:score,
-money:money,
-fish_caught:caught,
-pole_level:poleLevel,
-bait_level:baitLevel,
-basket_limit:basketLimit
+session_id:passportLaunch.session_id,
+capability:passportLaunch.capability,
+event_id:"catch_fry:"+(typeof crypto.randomUUID==="function" ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2)),
+subgame:GAME_KEY,
+mode:"arcade",
+score:Math.trunc(score),
+detail:{
+money:Math.max(0,Math.trunc(money)),
+fish_caught:Math.max(0,Math.trunc(caught)),
+pole_level:Math.max(1,Math.trunc(poleLevel)),
+bait_level:Math.max(1,Math.trunc(baitLevel)),
+basket_limit:Math.max(1,Math.trunc(basketLimit))
+}
 };
 
-const {error}=await supabaseClient
-.from(LEADERBOARD_TABLE)
-.insert(payload);
-
-if(error){
+try{
+const response=await fetch(GAME_RESULT_URL,{
+method:"POST",
+mode:"cors",
+credentials:"omit",
+cache:"no-store",
+headers:{apikey:SUPABASE_ANON_KEY,"Content-Type":"application/json"},
+body:JSON.stringify(payload)
+});
+const result=await response.json().catch(()=>({}));
+if(!response.ok || !result.accepted)throw new Error(result.error || "Score was not accepted.");
+lastSubmittedScore=score;
+}catch(error){
 console.error(error);
 if(showMessage){
 say("Leaderboard submit failed.");
@@ -1032,7 +931,7 @@ return;
 }
 
 if(showMessage){
-say("Score submitted!");
+say("Score saved to your Passport as UNVERIFIED.");
 }
 
 if(document.getElementById("leaderboard").style.display==="flex"){
@@ -1050,11 +949,11 @@ return;
 leaderboardList.textContent="Loading leaderboard...";
 
 const {data,error}=await supabaseClient
-.from(LEADERBOARD_TABLE)
-.select("username,display_name,profile_pic_url,score,money,fish_caught,created_at")
-.order("score",{ascending:false})
-.order("created_at",{ascending:true})
-.limit(25);
+.rpc("onehome_game_public_leaderboard",{
+p_game_key:GAME_KEY,
+p_subgame:null,
+p_limit:25
+});
 
 if(error){
 console.error(error);
@@ -1068,19 +967,16 @@ return;
 }
 
 leaderboardList.innerHTML=data.map((row,index)=>{
-const rank=index+1;
-const username=safeText(row.username || "doodplayer");
+const rank=Number(row.rank || index+1);
+const username=safeText(row.passport_username || "player");
 const displayName=safeText(row.display_name || username);
-const avatar=safeText(row.profile_pic_url || "");
-const avatarHtml=avatar
-  ? `<img class="lbAvatar" src="${avatar}" alt="">`
-  : `<div class="lbAvatar"></div>`;
+const verification=safeText(String(row.verification_status || "unverified").toUpperCase());
 
 return `
 <div class="lbRow">
   <div class="lbRank">#${rank}</div>
-  <div>${avatarHtml}</div>
-  <div class="lbName">${displayName}<br><span class="small">@${username} • $${row.money} • ${row.fish_caught} fish</span></div>
+  <div class="lbAvatar" aria-hidden="true">🎣</div>
+  <div class="lbName">${displayName}<br><span class="small">@${username} • ${verification}</span></div>
   <div class="lbScore">${row.score}</div>
 </div>
 `;
@@ -1101,30 +997,14 @@ bind("reelBtn",reelLine);
 bind("fryBtn",fryFish);
 bind("shopBtn",openShop);
 bind("leaderBtn",openLeaderboard);
-bind("loginBtnSmall",openLoginPanel);
-bind("leaderLoginBtn",openLoginPanel);
+bind("passportBtnSmall",showPassportStatus);
 bind("closeShop",closeShop);
 bind("closeLeaderboard",closeLeaderboard);
-bind("closeLoginPanel",closeLoginPanel);
 bind("submitScoreBtn",()=>submitScore(true));
 bind("refreshLeaderboardBtn",loadLeaderboard);
 bind("buyPole",buyPole);
 bind("buyBait",buyBait);
 bind("buyBasket",buyBasket);
-
-bind("loginBtn",()=>{
-const email=document.getElementById("loginEmail").value;
-const password=document.getElementById("loginPassword").value;
-loginWithDoodLabs(email,password);
-});
-
-bind("panelLoginBtn",()=>{
-const email=document.getElementById("panelLoginEmail").value;
-const password=document.getElementById("panelLoginPassword").value;
-loginWithDoodLabs(email,password);
-});
-
-bind("logoutBtn",logoutDoodLabs);
 
 function hold(id,on,off){
 let el=document.getElementById(id);
@@ -1154,19 +1034,8 @@ if(k==="a"||k==="arrowleft")player.left=false;
 if(k==="d"||k==="arrowright")player.right=false;
 });
 
-if(supabaseClient){
-supabaseClient.auth.onAuthStateChange(async(event,session)=>{
-currentUser=session && session.user ? session.user : null;
-if(currentUser){
-await loadProfileForUser(currentUser.id);
-}else{
-currentProfile=null;
-updateAuthUi();
-}
-});
-}
-
-loadCurrentSession();
+updatePassportUi();
+try{postReady(new URL(document.referrer).origin);}catch(_error){}
 resetFish();
 updateHud();
 
