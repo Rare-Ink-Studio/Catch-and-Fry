@@ -1,0 +1,39 @@
+name: One-time Catch and Fry start-screen cleanup
+on:
+  push:
+    paths:
+      - .github/workflows/catch-fry-kiss-once.yml
+permissions:
+  contents: write
+jobs:
+  clean-start:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove only the extra start-screen copy
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          page = Path('index.html')
+          source = page.read_text(encoding='utf-8')
+          unwanted = '<p>Play anytime. Your One Home Passport links automatically when you enter from One Home.</p>\n'
+          assert source.count(unwanted) == 1, 'Expected intro copy does not match; stop without changing the game.'
+          marker = '</style>'
+          assert source.count(marker) == 1, 'Expected style section not found; stop without changing the game.'
+          updated = source.replace(unwanted, '', 1)
+          updated = updated.replace(marker, '#start #profileStatus, #start #openOneHomeLink { display: none !important; }\n' + marker, 1)
+          assert 'const GAME_KEY="catch_and_fry";' in updated, 'Game identity changed; stop.'
+          assert 'function updatePassportUi()' in updated, 'Passport connection changed; stop.'
+          assert updated.count('#start #profileStatus, #start #openOneHomeLink') == 1
+          page.write_text(updated, encoding='utf-8')
+          PY
+      - name: Commit the minimal change and remove this one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/catch-fry-kiss-once.yml
+          git add index.html
+          git diff --cached --check
+          git diff --cached --stat
+          git commit -m "Remove extra Catch and Fry start-screen text"
+          git push
